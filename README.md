@@ -12,3 +12,4 @@ On complètera ce tableau avec les liens vers IMDB et Subscene, afin d'avoir un 
 Enfin, on utilisera SendGrid pour s'envoyer via email le tableau des sorties de la semaine, auquel on joindra un tableau Excel de la database à la date de l'email.
 
 ![Resultat](https://i.imgur.com/sdyoVho.png)
+
