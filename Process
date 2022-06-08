@@ -44,7 +44,6 @@ options.add_argument('--headless')
 
 driver = webdriver.Firefox(options = options, executable_path = path_gecko)
 
-
 def scrap_all():
     ## SUBSCENE ##
 
