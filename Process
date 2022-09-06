@@ -1,11 +1,16 @@
-##~~ VERSION V8 TEST ~~##
-## 05/05/2022
+##~~ VERSION V10 TEST ~~##
+## 01/09/2022
+
 
 ## ~~ Imports ~~ ##
 
 ## Local & serveur ##
 
-#path_gecko_local = r'C:\Users\Admin\Documents\Projet IMDB\Geckodriver\geckodriver.exe'
+#path_gecko = r'C:\Users\Admin\Documents\Projet IMDB\Geckodriver\geckodriver.exe'
+
+
+        ## Attention au PATH au dessus !!!
+
 
 path_gecko = "/home/projet_imdb/geckodriver"
 
@@ -28,6 +33,7 @@ import numpy as np
 from bs4 import BeautifulSoup
 import requests
 import http.client
+import re
 
 ## Imports Selenium / geckodriver
 
@@ -44,6 +50,15 @@ options.add_argument('--headless')
 
 driver = webdriver.Firefox(options = options, executable_path = path_gecko)
 
+
+## Fonction cleanup pour scraping Subscene
+def cleanup(astring):
+    bstring = astring.replace(" ","")
+    cstring = bstring.replace("\t","")
+    dstring = cstring.replace("\n","")
+    return(str(dstring))
+
+
 def scrap_all():
     ## SUBSCENE ##
 
@@ -55,6 +70,9 @@ def scrap_all():
     prefix_url = "https://subscene.com"
     liste_liens_imdb = []
     liste_liens_subscene = []
+    
+    liste_type = []
+    liste_titre = []
 
     ## Scraping via webscraping.ia:
     
@@ -62,7 +80,7 @@ def scrap_all():
     
     conn = http.client.HTTPSConnection("api.webscraping.ai")
 
-    conn.request("GET", "/html?api_key=******&url=https://subscene.com/browse/popular/film/1")
+    conn.request("GET", "/html?api_key=***&url=https://subscene.com/browse/popular/film/1")
 
     res = conn.getresponse()
     data = res.read()
@@ -70,35 +88,48 @@ def scrap_all():
     data_d = data.decode("utf-8")
 
     soup_true = BeautifulSoup(data_d, 'html.parser')
-    contenu_film_url = soup_true.find_all("a")
+    contenu_film_type = soup_true.find_all('td', {'class':'a3'})
+	
 
-    ## Récupération url
+    for element in contenu_film_type:
+        str_element = str(element)
+        type_film = cleanup(str_element)
+        start = type_film.find('<tdclass="a3">') +14
+        end = type_film.find('</td>', start)    
+        element_text = type_film[start:end]
 
-    for element in contenu_film_url:
-        individual_url = element.get("href")
-        if pattern_sub in individual_url:
-            if langue in individual_url:
-                liste_url.append(individual_url)
+        liste_type.append(element_text)
 
-    ## Récupération lien à partir de l'url  + nom du film
+    contenu_film_title= soup_true.find_all('td', {'class':'a1'})
+	
+    for element in contenu_film_title:
+        text = str(element)
+        start = text.find('<a href="') + 9
+        end = text.find('">\n<div class="visited">')
+        liste_titre.append(text[start:end])
 
-    for each in liste_url:
+    df_a_trier = pd.DataFrame(list(zip(liste_titre,liste_type)), columns = ['Film','Type'])
+    df_nocam = df_a_trier[df_a_trier['Type'] != 'Cam']
+    df_nocam_english = df_nocam[df_nocam['Film'].str.contains("/english/")]
+	
+    for each in df_nocam_english['Film']:
         url_each = each
         titre_each = each.split("/subtitles/")[1].split('/english/')[0]
         new_value = {'Titre' : titre_each, 'Url' : prefix_url + url_each}
         url_title = url_title.append(new_value, ignore_index=True)
-
+	
+	
     ## Suppression duplicates
     url_title.drop_duplicates(subset = 'Titre',inplace=True)
     url_title.reset_index(drop = True, inplace = True)
-
+	
     ## Récupération des URL IMDB :
 
     for each_url in url_title['Url']:
         #html_subscene = requests.get(each_url)
         conn = http.client.HTTPSConnection("api.webscraping.ai")
 
-        conn.request("GET", "/html?api_key=******&url=" + str(each_url)   )
+        conn.request("GET", "/html?api_key=afd7bf56-b92a-47b2-9b43-065203b77c9c&url=" + str(each_url)   )
 
         res = conn.getresponse()
         data_subsc = res.read()
@@ -112,7 +143,6 @@ def scrap_all():
     ## Ajout dans le DataFrame :
 
     url_title['lien_imdb'] = liste_liens_imdb
-
     
  ## IMDB : ##
 
@@ -218,6 +248,10 @@ def scrap_all():
 tableau_resultat = scrap_all()
 
 
+if tableau_resultat.empty :
+    var_scraping = "Scraping Process Error : Result empty"
+else:
+    var_scraping = "Scraping Process : Result not empty";
 
 ## ~~ Film Push et Archive ~~ ##
 
@@ -236,6 +270,10 @@ else :
         if film_scrape not in list(archive_imdb['Lien_IMDB']):
             film_push = film_push.append(tableau_resultat.iloc[j,:])
 
+if film_push.empty:
+    var_return = "No new movies"
+else:
+    var_return = "New movies available"
 
 ## ~~ Mise en archive  ~~ ##
 
@@ -252,19 +290,20 @@ html_essai = """\
 <html>
   <head></head>
   <body>
+  {0} \n
+  {1}
   <h2> Voici les films de la semaine :</h2>
-    {0}
+    {2}
   </body>
 </html>
-""".format(film_push.to_html())
-
+""".format(var_scraping,var_return,film_push.to_html())
 
 
 ## ~~ PUSH Sendgrid ~~ ##
 
 message = Mail(
-    from_email='******@gmail.com',
-    to_emails=['******@******.fr', '************@******.com'],
+    from_email='***',
+    to_emails=['***', '***'],
     subject="Update IMDB - {}".format(today.strftime('%d/%m/%Y')),
     html_content=html_essai)
 
@@ -281,5 +320,5 @@ attachedFile = Attachment(
 )
 message.attachment = attachedFile
 
-sg = SendGridAPIClient('******')
+sg = SendGridAPIClient('***')
 response = sg.send(message)
