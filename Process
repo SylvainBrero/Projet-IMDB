@@ -129,7 +129,7 @@ def scrap_all():
         #html_subscene = requests.get(each_url)
         conn = http.client.HTTPSConnection("api.webscraping.ai")
 
-        conn.request("GET", "/html?api_key=afd7bf56-b92a-47b2-9b43-065203b77c9c&url=" + str(each_url)   )
+        conn.request("GET", "/html?api_key=***&url=" + str(each_url)   )
 
         res = conn.getresponse()
         data_subsc = res.read()
