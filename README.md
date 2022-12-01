@@ -11,5 +11,4 @@ On constitue alors une liste de ces nouveaux films populaires, qu'on va complét
 On complètera ce tableau avec les liens vers IMDB et Subscene, afin d'avoir un accès direct aux informations sources.
 Enfin, on utilisera SendGrid pour s'envoyer via email le tableau des sorties de la semaine, auquel on joindra un tableau Excel de la database à la date de l'email.
 
-![Resultat](https://i.imgur.com/sdyoVho.png)
-
+![Resultat](https://imgur.com/G1pnWf0.png)
