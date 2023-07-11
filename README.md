@@ -1,13 +1,14 @@
 # Projet-IMDB
 
 Méthodologie et outils :
+
 Acquisition : 
   - Firefox (geckodriver - Selenium)
   - scraping (Python - BeautifulSoup - webscraping.ai)
-    
+
 Transformation :
   - Python (pandas)
-    
+
 Restitution:
   - mailing (sendgrid)
 
