@@ -4,8 +4,10 @@ Méthodologie et outils :
 Acquisition : 
   - Firefox (geckodriver - Selenium)
   - scraping (Python - BeautifulSoup - webscraping.ai)
- Transformation :
+    
+Transformation :
   - Python (pandas)
+    
 Restitution:
   - mailing (sendgrid)
 
