@@ -1,13 +1,25 @@
-##~~ VERSION V12 ~~##
-## 15/11/2022
+##~~ VERSION V15 ~~##
+## 18/05/2023
 
 # Changelog:
-# Réparation tableau Sendgrid
-# Multiple PJ Sendgrid
-# Verification présence archive_log ?
+# V14 : Réparation scraping (CSS IMDB) + driver.find_element(By.CSS_SELECTOR,...)
+# V15 : Revamp fichier log
+
+
 
 
 ## ~~ Imports ~~ ##
+
+## Local & serveur ##
+
+#path_gecko = r'C:\Users\Admin\Documents\Projet IMDB\Geckodriver\geckodriver.exe'
+#path_gecko = r'C:\Users\Sylvain\Documents\Projet IMDB\Geckodriver\geckodriver.exe'
+
+path_gecko = "/home/projet_imdb/geckodriver"
+
+
+        ## Attention au PATH au dessus !!!
+
 
 ## Mailing
 
@@ -27,6 +39,8 @@ import pandas as pd
 import numpy as np
 from bs4 import BeautifulSoup
 import requests
+import http.client
+import re
 
 ## Imports Selenium / geckodriver
 
@@ -34,14 +48,16 @@ import urllib.request
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.common.by import By
+from datetime import date
 import time
 
 ## Initialisation driver :
 
 options =  Options()
 options.add_argument('--headless')
-driver = webdriver.Firefox(options = options, executable_path = "/home/projet_imdb/geckodriver")
 
+from selenium.webdriver.firefox.service import Service
+service = Service(executable_path=path_gecko)
 
 ## Fonction cleanup pour scraping Subscene
 def cleanup(astring):
@@ -49,33 +65,28 @@ def cleanup(astring):
     cstring = bstring.replace("\t","")
     dstring = cstring.replace("\n","")
     return(str(dstring))
-    
-## Fonction de validation de l'étape dans les logs
-def validation_update(etape):
-    
-    columns_logs = ['date','scraping_subscene','parsing_subscene','filtres_cam','url_title','scraping_url_imdb','scraping_imdb_name','scraping_imdb_genre','scraping_imdb_duration','scraping_imdb_rating','film_push','push_archive','email_sent']
-    
-    if str(etape) not in columns_logs:
-        message_sortie = "Etape invalide dans la validation"
-        return message_sortie
-    
-    else:
-        archive_log_temp = pd.read_csv(filepath_or_buffer= "archive_log.csv", sep=";", index_col= None, usecols=columns_logs)
-        
-        date_exec = date.today().strftime('%d/%m/%Y')
-        
-        last_index = archive_log_temp.index[archive_log_temp['date']==date_exec].tolist()[0]
 
-        archive_log_temp.at[last_index,str(etape)]= int("1")
 
-        archive_log_temp.to_csv(path_or_buf= "archive_log.csv", sep = ";", index = False)
-        
-        message_sortie = "Etape validée"
-        return message_sortie
+## Fonction de création de logs
+
+import logging
+
+## Config
+
+logging.basicConfig(filename='log_imdb.log', filemode='w', format='%(message)s')
+
+logger=logging.getLogger() 
+
+logger.setLevel(logging.INFO) 
+
+## Write
+logger.info("#############################################") 
+logger.warning('Execution du  %s', today)
+logger.info("#############################################") 
 
 
 def scrap_all():
-    ## SUBSCENE ##
+   ## SUBSCENE ##
 
     individual_url = ""
     liste_url = []
@@ -85,17 +96,17 @@ def scrap_all():
     prefix_url = "https://subscene.com"
     liste_liens_imdb = []
     liste_liens_subscene = []
-    
+
     liste_type = []
     liste_titre = []
 
     ## Scraping via webscraping.ia:
-    
+
     # url = "https://subscene.com/browse/popular/film/1"
-    
+
     conn = http.client.HTTPSConnection("api.webscraping.ai")
 
-    conn.request("GET", "/html?api_key=****&url=https://subscene.com/browse/popular/film/1")
+    conn.request("GET", "/html?api_key=***&url=https://subscene.com/browse/popular/film/1")
 
     res = conn.getresponse()
     data = res.read()
@@ -106,7 +117,8 @@ def scrap_all():
     contenu_film_type = soup_true.find_all('td', {'class':'a3'})
 
     ## Etape 1 done : scraping_subscene
-    validation_update("scraping_subscene")
+    #validation_update("scraping_subscene")
+    logger.info("scraping subscene OK") 
 
     for element in contenu_film_type:
         str_element = str(element)
@@ -120,7 +132,8 @@ def scrap_all():
     contenu_film_title= soup_true.find_all('td', {'class':'a1'})
 
     ## Etape 2 done : parsing_subscene
-    validation_update("parsing_subscene")
+    #validation_update("parsing_subscene")
+    logger.info("parsing subscene OK") 
 
     for element in contenu_film_title:
         text = str(element)
@@ -134,33 +147,35 @@ def scrap_all():
     df_nocam_english = df_nocam[df_nocam['Film'].str.contains("/english/")]
 
     ## Etape 3 done : filtres_cam
-    validation_update("filtres_cam")
-    
+    #validation_update("filtres_cam")
+    logger.info("filtres cam OK") 
+
     for each in df_nocam_english['Film']:
         url_each = each
         titre_each = each.split("/subtitles/")[1].split('/english/')[0]
         new_value = {'Titre' : titre_each, 'Url' : prefix_url + url_each}
         url_title = url_title.append(new_value, ignore_index=True)
-    
+
     ## Etape 4 done : url_title
-    validation_update("url_title")
-    
+    #validation_update("url_title")
+    logger.info("url_title OK") 
+
     ## Suppression duplicates
     url_title.drop_duplicates(subset = 'Titre',inplace=True)
     url_title.reset_index(drop = True, inplace = True)
-    
+
     ## Récupération des URL IMDB :
 
     for each_url in url_title['Url']:
         #html_subscene = requests.get(each_url)
         conn = http.client.HTTPSConnection("api.webscraping.ai")
 
-        conn.request("GET", "/html?api_key=****=" + str(each_url)   )
+        conn.request("GET", "/html?api_key=***&url=" + str(each_url)   )
 
         res = conn.getresponse()
         data_subsc = res.read()
         data_subsc_d = data_subsc.decode("utf-8")
-        
+
         soup_subscene = BeautifulSoup(data_subsc_d, 'html.parser')
         contenu_lien_subscene = soup_subscene.find_all('a', {'class':'imdb'})
         lien_imdb = contenu_lien_subscene[0].get("href")
@@ -170,9 +185,10 @@ def scrap_all():
 
     url_title['lien_imdb'] = liste_liens_imdb
     ## Etape 5 done : scraping_url_imdb
-    validation_update("scraping_url_imdb")
+    #validation_update("scraping_url_imdb")
+    logger.info("scraping url imdb OK")
     
- ## IMDB : ##
+    ## IMDB : ##
 
     ## Variables locales :
 
@@ -195,8 +211,9 @@ def scrap_all():
         print(film)
 
         ## Initialisation driver :
-
-        driver = webdriver.Firefox(options = options, executable_path = path_gecko)
+        ## path_gecko = "/home/projet_imdb/geckodriver"
+        service = Service(executable_path=path_gecko)
+        driver = webdriver.Firefox(service=service, options=options)
 
         driver.get(film)
         ## Scroll automatique jusqu'au bas de la page 
@@ -210,74 +227,92 @@ def scrap_all():
 
         if (len(driver.find_elements(By.CSS_SELECTOR,'h1[data-testid="hero-title-block__title"]')) == 0):
 
-            print("Ancienne version")
-            ## Nom du film  :
-            find_nom = driver.find_element_by_css_selector(".title_wrapper > h1")
-            nom_imdb = find_nom.text.strip()
-            ## Etape 6.1 done : scraping_imdb_name
-            validation_update("scraping_imdb_name")
-
-            ## Genre(s):
-            find_genre = driver.find_element_by_css_selector('.subtext')
-            genre_imdb = find_genre.text.split("|")[-2].strip()
-            ## Etape 6.2 done : scraping_imdb_genre
-            validation_update("scraping_imdb_genre")
-
-            ## Durée du film :
-            find_duree = driver.find_element_by_css_selector('.subtext time')
-            duree_imdb = find_duree.text.strip()
-            ## Etape 6.3 done : scraping_imdb_duration
-            validation_update("scraping_imdb_duration")
-
-            ## Note du film :
-            find_note = driver.find_element_by_css_selector('.ratingValue span')
-            note_imdb = find_note.text.strip()
-            ## Etape 6.4 done : scraping_imdb_rating
-            validation_update("scraping_imdb_rating")
-
-            driver.quit()
-
-            print(i)
-
-        else:
-
-            print("Nouvelle version")
+            print("Nouvelle version 2-22032023")
             ## Nom du film  :               
-            find_nom = driver.find_element_by_css_selector('h1[data-testid="hero-title-block__title"]')
+            ## find_nom = driver.find_element_by_css_selector('h1[data-testid="hero__pageTitle"]')
+            find_nom = driver.find_element(By.CSS_SELECTOR,'h1[data-testid="hero__pageTitle"]')
             nom_imdb_sansdate = find_nom.text.strip()
 
-            find_date = driver.find_element_by_css_selector('a[href*="releaseinfo?ref_=tt_ov_rdat"]').text
+            find_date = driver.find_element(By.CSS_SELECTOR,'a[href*="releaseinfo?ref_=tt_ov_rdat"]').text
 
             nom_imdb = nom_imdb_sansdate + " (" + find_date + ")"
             ## Etape 6.1 done : scraping_imdb_name
-            validation_update("scraping_imdb_name")
+            #validation_update("scraping_imdb_name")
+            logger.info("scraping imdb name OK") 
 
             ## Genre(s):
-            find_genre = driver.find_element_by_css_selector("div[data-testid='genres']")
+            find_genre = driver.find_element(By.CSS_SELECTOR,"div[data-testid='genres']")
             genre_imdb = find_genre.text.replace("\n",", ")
             ## Etape 6.2 done : scraping_imdb_genre
-            validation_update("scraping_imdb_genre")
+            #validation_update("scraping_imdb_genre")
+            logger.info("scraping imdb genre OK") 
 
             ## Durée du film :
-            find_duree = driver.find_element_by_css_selector("ul[data-testid='hero-title-block__metadata'] > li:last-child")
+            find_duree = driver.find_element(By.CSS_SELECTOR,".kdXikI > li:last-child")
             duree_imdb = find_duree.text.strip()
             ## Etape 6.3 done : scraping_imdb_duration
-            validation_update("scraping_imdb_duration")
+            #validation_update("scraping_imdb_duration")
+            logger.info("scraping imdb duration OK") 
 
             ## Note du film :
 
             if (len(driver.find_elements(By.CSS_SELECTOR,"div[data-testid='hero-rating-bar__aggregate-rating__score'] span")) >0):
-                find_note = driver.find_element_by_css_selector("div[data-testid='hero-rating-bar__aggregate-rating__score'] span")
+                find_note = driver.find_element(By.CSS_SELECTOR,"div[data-testid='hero-rating-bar__aggregate-rating__score'] span")
                 note_imdb = find_note.text.strip()
             else:
-                note_imdb = "N/A"
+                 note_imdb = "N/A"
 
-            ## Etape 6.4 done : scraping_imdb_rating
-            validation_update("scraping_imdb_rating")
+            logger.info("scraping imdb rating OK") 
 
             driver.quit()
 
             print(i)
+            logger.info('%s', i)
+
+        else:
+
+            print("Nouvelle version 2022")
+            ## Nom du film  :               
+            find_nom = driver.find_element(By.CSS_SELECTOR,'h1[data-testid="hero-title-block__title"]')
+            nom_imdb_sansdate = find_nom.text.strip()
+
+            find_date = driver.find_element(By.CSS_SELECTOR,'a[href*="releaseinfo?ref_=tt_ov_rdat"]').text
+
+            nom_imdb = nom_imdb_sansdate + " (" + find_date + ")"
+            ## Etape 6.1 done : scraping_imdb_name
+            #validation_update("scraping_imdb_name")
+            logger.info("scraping imdb name OK") 
+
+            ## Genre(s):
+            find_genre = driver.find_element(By.CSS_SELECTOR,"div[data-testid='genres']")
+            genre_imdb = find_genre.text.replace("\n",", ")
+            ## Etape 6.2 done : scraping_imdb_genre
+            #validation_update("scraping_imdb_genre")
+            logger.info("scraping imdb genre OK") 
+
+            ## Durée du film :
+            find_duree = driver.find_element(By.CSS_SELECTOR,"ul[data-testid='hero-title-block__metadata'] > li:last-child")
+            duree_imdb = find_duree.text.strip()
+            ## Etape 6.3 done : scraping_imdb_duration
+            #validation_update("scraping_imdb_duration")
+            logger.info("scraping imdb duration OK") 
+
+            ## Note du film :
+
+            if (len(driver.find_elements(By.CSS_SELECTOR,"div[data-testid='hero-rating-bar__aggregate-rating__score'] span")) >0):
+                find_note = driver.find_element(By.CSS_SELECTOR,"div[data-testid='hero-rating-bar__aggregate-rating__score'] span")
+                note_imdb = find_note.text.strip()
+            else:
+                 note_imdb = "N/A"
+
+            ## Etape 6.4 done : scraping_imdb_rating
+            #validation_update("scraping_imdb_rating")
+            logger.info("scraping imdb rating OK") 
+
+            driver.quit()
+
+            print(i)
+            logger.info('%s', i)
 
         ## Dans le DF :
         row= {'Titre': nom_imdb, 'Note' : note_imdb , 'Genres' : genre_imdb,'Duree' : duree_imdb}
@@ -285,28 +320,7 @@ def scrap_all():
 
         resultat_imdb['Lien_IMDB'] = url_title['lien_imdb']
         resultat_imdb['Lien_Subscene'] = url_title['Url']
-    
     return resultat_imdb
-
-## Appel ##
-
-### Initialisation du fichier log
-
-columns_logs = ['date','scraping_subscene','parsing_subscene','filtres_cam','url_title','scraping_url_imdb','scraping_imdb_name','scraping_imdb_genre','scraping_imdb_duration','scraping_imdb_rating','film_push','push_archive','email_sent']
-try :
-    archive_log = pd.read_csv(filepath_or_buffer = "archive_log.csv", sep=";", index_col= None, usecols=columns_logs)
-except :
-    archive_log = pd.DataFrame(columns = columns_logs)
-
-date_new_entry = date.today().strftime('%d/%m/%Y')
-
-new_entry_log = {'date':date_new_entry,'scraping_subscene':0,'parsing_subscene':0,'filtres_cam':0,'url_title':0,'scraping_url_imdb':0,
-               'scraping_imdb_name':0,'scraping_imdb_genre':0,'scraping_imdb_duration':0,'scraping_imdb_rating':0,
-               'film_push':0,'push_archive':0,'email_sent':0}
-
-archive_log_push = archive_log.append(new_entry_log,ignore_index=True)
-
-archive_log_push.to_csv(path_or_buf= "archive_log.csv", sep = ";", index = False)
 
 ### Lancement Scraping 
 
@@ -331,7 +345,9 @@ else :
             film_push = film_push.append(tableau_resultat.iloc[j,:])
 
 ## Etape 7 done : film_push
-validation_update("film_push")
+#validation_update("film_push")
+logger.info("push film OK") 
+
 
 ## ~~ Mise en archive  ~~ ##
 
@@ -344,7 +360,8 @@ nouvelle_archive.to_csv(path_or_buf= "archive_imdb_{}.csv".format(today.strftime
 film_push.reset_index(inplace = True, drop = True)
 
 ## Etape 8 done : push_archive
-validation_update("push_archive")
+#validation_update("push_archive")
+logger.info("push archive OK") 
 
 ## ~~ Contenu du mail ~~ ##
 html_essai = """\
@@ -352,19 +369,17 @@ html_essai = """\
   <head></head>
   <body>
   <h2> Voici les films de la semaine :</h2>
-    {0} \n
-  <h2> Voici les logs :</h2>
-    {1}
+    {0}
   </body>
 </html>
-""".format(film_push.to_html(),archive_log_push.to_html())
+""".format(film_push.to_html())
 
 
 ## ~~ PUSH Sendgrid ~~ ##
 
 message = Mail(
-    from_email='****',
-    to_emails=['****', '****','****'],
+    from_email='***',
+    to_emails=['***', '***','***'],
     subject="Update IMDB - {}".format(today.strftime('%d/%m/%Y')),
     html_content=html_essai)
 
@@ -373,23 +388,18 @@ with open('archive_imdb.csv', 'rb') as f:
     f.close()
 encoded_file = base64.b64encode(data).decode()
 
-attachedFile1 = Attachment(
+attachedFile = Attachment(
     FileContent(encoded_file),
     FileName('archive_imdb_{}.csv'.format(today.strftime('%d-%m-%Y'))),
     FileType('application/csv'),
     Disposition('attachment')
 )
 
-attachedFile2 = Attachment(
-    FileContent(encoded_file),
-    FileName('archive_log.csv'),
-    FileType('application/csv'),
-    Disposition('attachment')
-)
-message.attachment = [attachedFile1,attachedFile2]
+message.attachment = [attachedFile]
 
-sg = SendGridAPIClient('*****')
+sg = SendGridAPIClient('***')
 response = sg.send(message)
 
 ## Etape 9 done : email_sent
-validation_update("email_sent")
+#validation_update("email_sent")
+logger.info("email sent OK") 
