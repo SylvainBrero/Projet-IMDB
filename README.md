@@ -1,16 +1,22 @@
 # Projet-IMDB
 
-Méthodologie et outils :
+## Méthodologie et outils :
 
 Acquisition : 
   - Firefox (geckodriver - Selenium)
-  - scraping (Python - BeautifulSoup - webscraping.ai)
+  - scraping (Python - BeautifulSoup - Webscraping.ai)
+
+On simule, via l'outil Geckodriver, un navigateur Firefox via lequel on chargera l'url souhaitée avant de scraper les données de cette page. On passe aussi par un outil de wbscraping afin d'éviter toute problématique CloudFlare parfois active sur la page en question.
 
 Transformation :
   - Python (pandas)
 
 Restitution:
-  - mailing (sendgrid)
+  - mailing (Sendgrid)
+
+On utilise un service de mailing afin de pouvoir distribuer en toute simplicité un rapport mail suite à chaque exécution du script.
+
+## Fonctionnement :
 
 Ce projet personnel, toujours en cours de réalisation, s'articule autour de la construction, via du scraping, d'une liste de film pouvant m'intéresser. Pour cela, un premier scraping du site "subscene" (site mettant à disposition des sous-titres) permet de mettre en évidence les nouveaux films disponibles en téléchargement, filtrés selon leur popularité et leur langue.
 
