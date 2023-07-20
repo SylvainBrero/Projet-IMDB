@@ -4,7 +4,7 @@
 
 Acquisition : 
   - Firefox (geckodriver - Selenium)
-  - scraping (Python - BeautifulSoup - Webscraping.ai)
+  - Scraping (Python - BeautifulSoup - Webscraping.ai)
 
 On simule, via l'outil Geckodriver, un navigateur Firefox via lequel on chargera l'url souhaitée avant de scraper les données de cette page. On passe aussi par un outil de wbscraping afin d'éviter toute problématique CloudFlare parfois active sur la page en question.
 
@@ -12,7 +12,7 @@ Transformation :
   - Python (pandas)
 
 Restitution:
-  - mailing (Sendgrid)
+  - Mailing (Sendgrid)
 
 On utilise un service de mailing afin de pouvoir distribuer en toute simplicité un rapport mail suite à chaque exécution du script.
 
